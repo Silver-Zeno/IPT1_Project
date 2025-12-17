@@ -69,12 +69,41 @@
     }
 
     .header {
-      padding: 18px;
+      padding: 12px 18px;
       background: #4caf50;
       color: white;
-      font-size: 20px;
-      font-weight: bold;
-      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .header .title {
+      flex: 1 1 auto;
+      text-align: left;
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex: 0 0 auto;
+    }
+
+    .header-controls button {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      background: rgba(255,255,255,0.12);
+      color: white;
+    }
+
+    .header-controls button:hover {
+      background: rgba(255,255,255,0.18);
     }
 
     #chat-box {
@@ -118,7 +147,7 @@
       flex: 1;
       padding: 12px 14px;
       font-size: 15px;
-      border: 2px solid #ddd;
+      border: 2px solid #ddd; 
       border-radius: 20px;
       outline: none;
       transition: 0.2s;
@@ -167,7 +196,14 @@
   </button>
 
   <div class="chat-container" id="chatContainer">
-    <div class="header">BarangayBot Assistant</div>
+    <div class="header">
+      <div class="title">BarangayBot Assistant</div>
+      <div class="header-controls">
+        <button id="newChatBtn" title="New chat">New Chat</button>
+        <button id="undoBtn" title="Undo clear" style="display:none">Undo</button>
+        <button id="closeBtn" title="Close">✕</button>
+      </div>
+    </div>
 
     <div id="chat-box"></div>
 
@@ -189,12 +225,48 @@
     const chatBox = document.getElementById("chat-box");
     const promptInput = document.getElementById("prompt");
     const sendBtn = document.getElementById("sendBtn");
+    const newChatBtn = document.getElementById("newChatBtn");
+    const undoBtn = document.getElementById("undoBtn");
+    const closeBtn = document.getElementById("closeBtn");
     const statusEl = document.getElementById("status");
     const chatContainer = document.getElementById("chatContainer");
     const chatToggle = document.getElementById("chatToggle");
 
-    const conversation = [];
+    const STORAGE_KEY = "barangaybot_conversation_v1";
+    const BACKUP_KEY = "barangaybot_conversation_backup_v1";
+    let conversation = [];
+    let previousConversation = null;
+    let undoTimeoutId = null;
     let chatOpen = false;
+
+    function saveConversation() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(conversation));
+      } catch (e) {
+        console.warn("Could not save conversation:", e);
+      }
+    }
+
+    function loadConversation() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (Array.isArray(data) && data.length) {
+          conversation = data;
+          chatBox.innerHTML = "";
+          for (const m of conversation) {
+            const who = m.role === "assistant" ? "bot" : "user";
+            addMessage(m.content, who);
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load conversation:", e);
+      }
+    }
+
+    // load existing conversation from localStorage
+    loadConversation();
 
     function renderText(text) {
       
@@ -236,6 +308,80 @@
       }
     });
 
+    // New Chat: confirm, keep a temporary backup, clear conversation and UI
+    newChatBtn.addEventListener("click", () => {
+      const ok = confirm("Start a new chat? This will clear the current conversation.");
+      if (!ok) return;
+
+      // keep a backup so user can undo
+      previousConversation = conversation.slice();
+      try {
+        sessionStorage.setItem(BACKUP_KEY, JSON.stringify(previousConversation));
+      } catch (e) {
+        console.warn("Could not save backup:", e);
+      }
+
+      // clear the saved conversation and UI
+      conversation = [];
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      chatBox.innerHTML = "";
+
+      // show undo button and status
+      if (undoBtn) undoBtn.style.display = "inline-block";
+      setStatus("Conversation cleared — click Undo to restore");
+
+      // auto-hide undo after 8 seconds and drop backup
+      if (undoTimeoutId) clearTimeout(undoTimeoutId);
+      undoTimeoutId = setTimeout(() => {
+        previousConversation = null;
+        try { sessionStorage.removeItem(BACKUP_KEY); } catch (e) {}
+        if (undoBtn) undoBtn.style.display = "none";
+        setStatus("");
+        undoTimeoutId = null;
+      }, 8000);
+
+      promptInput.value = "";
+      promptInput.focus();
+    });
+
+    // Undo handler: restore previous conversation
+    if (undoBtn) {
+      undoBtn.addEventListener("click", () => {
+        let data = previousConversation;
+        try {
+          const raw = sessionStorage.getItem(BACKUP_KEY);
+          if (!data && raw) data = JSON.parse(raw);
+        } catch (e) {
+          console.warn("Could not read backup", e);
+        }
+        if (!data) return;
+
+        // restore
+        conversation = data.slice();
+        chatBox.innerHTML = "";
+        for (const m of conversation) {
+          addMessage(m.content, m.role === "assistant" ? "bot" : "user");
+        }
+        saveConversation();
+
+        // clear backup and UI hints
+        previousConversation = null;
+        try { sessionStorage.removeItem(BACKUP_KEY); } catch (e) {}
+        if (undoTimeoutId) { clearTimeout(undoTimeoutId); undoTimeoutId = null; }
+        if (undoBtn) undoBtn.style.display = "none";
+        setStatus("Conversation restored");
+        setTimeout(() => setStatus(""), 1200);
+      });
+    }
+
+    // Close chat window
+    closeBtn.addEventListener("click", () => {
+      chatOpen = false;
+      chatContainer.classList.remove("open");
+      chatToggle.setAttribute("aria-expanded", "false");
+      chatToggle.focus();
+    });
+
     async function sendMessage() {
       const text = promptInput.value.trim();
       if (!text) return;
@@ -243,6 +389,7 @@
      
       addMessage(text, "user");
       conversation.push({ role: "user", content: text });
+      saveConversation();
       promptInput.value = "";
       setStatus("Streaming...");
 
@@ -287,6 +434,7 @@
 
         
         conversation.push({ role: "assistant", content: assistantText });
+        saveConversation();
         setStatus("Done.");
       } catch (err) {
         console.error("Streaming error:", err);
