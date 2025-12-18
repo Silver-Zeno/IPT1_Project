@@ -189,6 +189,13 @@
 
   <h1 style="font-size: 100px; text-align: center; margin-top: 20px;">BarangayBot Assistant</h1>
   <h1 style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 20px; text-align: center; margin-top: 20px;">Click the chat to barangaybot to help you what you need</h1>
+  <br>
+  <br>
+  <h2 style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 20px; text-align: center; margin-top: 20px;">Group Members</h2>
+  <h3 style="font-family: 'italic'; font-size: 15px; text-align: center; margin-top: 20px;">JOHN LENARD A. LORENZO</h3>
+  <h3 style="font-family: 'italic'; font-size: 15px; text-align: center; margin-top: 20px;">JOHN JOSHUA N. ROJO</h3>
+  <h3 style="font-family: 'italic'; font-size: 15px; text-align: center; margin-top: 20px;">AIRAH C. VIBAR</h3>
+  <h3 style="font-family: 'italic'; font-size: 15px; text-align: center; margin-top: 20px;">JOHN CARLO APUYAN</h3>
 
 
   <button class="chat-launcher" id="chatToggle" aria-expanded="false">
@@ -265,7 +272,7 @@
       }
     }
 
-    // load existing conversation from localStorage
+    
     loadConversation();
 
     function renderText(text) {
@@ -308,12 +315,12 @@
       }
     });
 
-    // New Chat: confirm, keep a temporary backup, clear conversation and UI
+    
     newChatBtn.addEventListener("click", () => {
       const ok = confirm("Start a new chat? This will clear the current conversation.");
       if (!ok) return;
 
-      // keep a backup so user can undo
+      
       previousConversation = conversation.slice();
       try {
         sessionStorage.setItem(BACKUP_KEY, JSON.stringify(previousConversation));
@@ -321,16 +328,16 @@
         console.warn("Could not save backup:", e);
       }
 
-      // clear the saved conversation and UI
+      
       conversation = [];
       try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
       chatBox.innerHTML = "";
 
-      // show undo button and status
+      
       if (undoBtn) undoBtn.style.display = "inline-block";
       setStatus("Conversation cleared — click Undo to restore");
 
-      // auto-hide undo after 8 seconds and drop backup
+      
       if (undoTimeoutId) clearTimeout(undoTimeoutId);
       undoTimeoutId = setTimeout(() => {
         previousConversation = null;
@@ -344,7 +351,7 @@
       promptInput.focus();
     });
 
-    // Undo handler: restore previous conversation
+    
     if (undoBtn) {
       undoBtn.addEventListener("click", () => {
         let data = previousConversation;
@@ -356,7 +363,7 @@
         }
         if (!data) return;
 
-        // restore
+        
         conversation = data.slice();
         chatBox.innerHTML = "";
         for (const m of conversation) {
@@ -364,7 +371,7 @@
         }
         saveConversation();
 
-        // clear backup and UI hints
+        
         previousConversation = null;
         try { sessionStorage.removeItem(BACKUP_KEY); } catch (e) {}
         if (undoTimeoutId) { clearTimeout(undoTimeoutId); undoTimeoutId = null; }
@@ -374,7 +381,7 @@
       });
     }
 
-    // Close chat window
+    
     closeBtn.addEventListener("click", () => {
       chatOpen = false;
       chatContainer.classList.remove("open");
