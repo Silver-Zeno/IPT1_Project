@@ -16,7 +16,7 @@ def main():
                 messages=[{"role": "user", "content": prompt}],
             )
             print("\nBarangaybot:", response["message"]["content"], "\n")
-        except Exception as exc:  # keep CLI from crashing on model errors
+        except Exception as exc: 
             print("\nError talking to Barangaybot:", exc, "\n")
 
 
